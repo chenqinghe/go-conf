@@ -1,17 +1,26 @@
 package conf
 
-import "fmt"
+import (
+	"fmt"
+	"unicode/utf8"
+)
 
 type scanner struct {
 	src []byte
 
-	ch  rune
-	off int
+	ch    rune // current character
+	off   int  // character offset
+	rdOff int  // reading offset (position after current character)
 }
 
 func (s *scanner) init(data []byte) {
 	s.src = data
+
 	s.ch = ' '
+	s.off = 0
+	s.rdOff = 0
+
+	s.next()
 }
 
 func (s *scanner) scanKeys() map[string][]byte {
@@ -135,21 +144,34 @@ func (s *scanner) scan() (pos int, tok Token, lit string) {
 }
 
 func (s *scanner) skipWhitespace() {
-	s.next()
 	for s.ch == ' ' || s.ch == '\t' || s.ch == '\n' || s.ch == '\r' {
 		s.next()
 	}
 }
 
+const bom = 0xFEFF // byte order mark, only permitted as very first character
+
 func (s *scanner) next() {
-	// TODO: unicode support
-	if s.off < len(s.src)-1 {
-		s.off++
-		r := rune(s.src[s.off])
+	if s.rdOff < len(s.src) {
+		s.off = s.rdOff
+		r, w := rune(s.src[s.rdOff]), 1
+		switch {
+		case r == 0:
+			panic("illegal character NUL")
+		case r >= utf8.RuneSelf:
+			// not ASCII
+			r, w = utf8.DecodeRune(s.src[s.rdOff:])
+			if r == utf8.RuneError && w == 1 {
+				panic("illegal UTF-8 encoding")
+			} else if r == bom && s.off > 0 {
+				panic("illegal byte order mark")
+			}
+		}
+		s.rdOff += w
 		s.ch = r
 	} else {
 		s.off = len(s.src)
-		s.ch = -1
+		s.ch = -1 // eof
 	}
 }
 

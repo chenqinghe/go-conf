@@ -51,7 +51,6 @@ func TestUnmarshalToMap(t *testing.T) {
 }
 `
 
-
 	m := map[string]string{}
 
 	if err := json.Unmarshal([]byte(data), &m); err != nil {
@@ -59,4 +58,23 @@ func TestUnmarshalToMap(t *testing.T) {
 	}
 
 	t.Log(m)
+}
+
+func TestScanNumber(t *testing.T) {
+	var data = `1.2121112  `
+
+	scanner := &scanner{}
+	scanner.init([]byte(data))
+	scanner.skipWhitespace()
+
+	t.Log(scanner.scanNumber(false))
+}
+
+func TestNext(t *testing.T) {
+	s := &scanner{}
+	s.init([]byte("😥hello "))
+	t.Log(s.off,s.rdOff, s.ch)
+
+	s.next()
+	t.Logf("%d, %d, %s", s.off,s.rdOff, string([]rune{s.ch}))
 }
